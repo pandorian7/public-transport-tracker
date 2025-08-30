@@ -1,0 +1,10 @@
+FROM ballerina/ballerina:2201.12.9
+WORKDIR /app
+
+USER root
+
+COPY . .
+
+EXPOSE 9090
+
+CMD ["bal", "run", "--watch"]
