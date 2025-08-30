@@ -31,6 +31,16 @@ services:
     ports:
       - 3000
 
+  backend:
+    depends_on:
+      - database
+      - osrm-lk
+    build: 
+      context: ./backend
+    ports: 
+      - 9090
+    restart: on-failure
+
   nginx:
     image: nginx:stable-alpine
     ports:
@@ -39,6 +49,7 @@ services:
       - ./nginx:/etc/nginx/conf.d:ro
     depends_on:
       - frontend
+      - backend
 
 volumes:
   osm-data-volume:
