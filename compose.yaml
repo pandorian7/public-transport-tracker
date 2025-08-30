@@ -1,0 +1,45 @@
+services:
+  database:
+    image: mysql:latest
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: BUS_TRANSPORT
+    volumes:
+      - ./database:/docker-entrypoint-initdb.d
+      - mysql-ball:/var/lib/mysql
+    ports:
+      - 3306
+
+  osrm-lk-data:
+      image: pandorian7/sri-lanka-osrm-dataset:latest
+      volumes:
+        - osm-data-volume:/data
+
+  osrm-lk:
+    image: osrm/osrm-backend:latest
+    volumes:
+      - osm-data-volume:/data:ro
+    depends_on:
+      - osrm-lk-data
+    ports:
+      - 5000
+    command: ["osrm-routed",  "--algorithm",  "mld",  "/data/sri-lanka.osrm"]
+
+  frontend:
+    build:
+      context: ./frontend 
+    ports:
+      - 80
+
+  nginx:
+    image: nginx:stable-alpine
+    ports:
+      - "8080:80"
+    volumes:
+      - ./nginx:/etc/nginx/conf.d:ro
+    depends_on:
+      - frontend
+
+volumes:
+  osm-data-volume:
+  mysql-ball:
