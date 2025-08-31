@@ -86,7 +86,7 @@ export default function TransportDashboard() {
 
   const routes = (data?.data as Route[]) ?? [];
   const trips = (tripsData?.data as Trip[]) ?? [];
-  console.log(trips);
+  console.log(trips, "TRIPS");
 
   const transformRouteToTransportOption = (route: Route) => {
     return {
@@ -102,6 +102,18 @@ export default function TransportDashboard() {
   };
 
   const transportOptions = routes.map(transformRouteToTransportOption);
+
+  const formatTimestamp = (timestamp: Trip["Loc_TimeStamp"]) => {
+    const date = new Date(
+      timestamp.year,
+      timestamp.month - 1,
+      timestamp.day,
+      timestamp.hour,
+      timestamp.minute,
+      timestamp.second
+    );
+    return date.toLocaleTimeString();
+  };
 
   console.log(routes);
   console.log(data);
@@ -675,7 +687,7 @@ export default function TransportDashboard() {
                           )}
                           <p className="text-xs text-muted-foreground">
                             Direction: {trip.Direction} • Last update:{" "}
-                            {new Date(trip.Loc_TimeStamp).toLocaleTimeString()}
+                            {formatTimestamp(trip.Loc_TimeStamp)}
                           </p>
                         </div>
                         <div className="text-right">
