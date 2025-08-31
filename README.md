@@ -11,7 +11,7 @@ graph TB
     end
 
     subgraph "Load Balancer"
-        N[Nginx Reverse Proxy<br/>Port 8080/8080]
+        N[Nginx Reverse Proxy<br/>Port 8081]
     end
 
     subgraph "Application Layer"
@@ -58,7 +58,7 @@ graph TB
 docker compose up --build
 ```
 
-Access at: http://localhost:8080
+Access at: http://localhost:8081
 
 ### Production Mode
 
@@ -66,7 +66,7 @@ Access at: http://localhost:8080
 docker compose -f compose.production.yaml up --build
 ```
 
-Access at: http://localhost:8080
+Access at: http://localhost:8081
 
 ## 📋 Prerequisites
 
@@ -193,14 +193,14 @@ sequenceDiagram
 - **Frontend**: Hot reload enabled, source code mounted
 - **Backend**: Watch mode for automatic recompilation
 - **Database**: Development data with volume persistence
-- **Port Mapping**: 8080:80 (nginx), 3000, 9090, 3306, 5000
+- **Port Mapping**: 8081:80 (nginx), 3000, 9090, 3306, 5000
 
 ### Production Environment
 
 - **Frontend**: Optimized build, no source mounting
 - **Backend**: Production compilation
 - **Database**: Production-ready configuration
-- **Port Mapping**: 8080:80 (nginx), internal ports only
+- **Port Mapping**: 8081:80 (nginx), internal ports only
 
 ## 🔧 Configuration
 

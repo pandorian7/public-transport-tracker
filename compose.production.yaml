@@ -11,9 +11,9 @@ services:
       - 3306
 
   osrm-lk-data:
-      image: pandorian7/sri-lanka-osrm-dataset:latest
-      volumes:
-        - osm-data-volume:/data
+    image: pandorian7/sri-lanka-osrm-dataset:latest
+    volumes:
+      - osm-data-volume:/data
 
   osrm-lk:
     image: osrm/osrm-backend:latest
@@ -23,11 +23,11 @@ services:
       - osrm-lk-data
     ports:
       - 5000
-    command: ["osrm-routed",  "--algorithm",  "mld",  "/data/sri-lanka.osrm"]
+    command: ["osrm-routed", "--algorithm", "mld", "/data/sri-lanka.osrm"]
 
   frontend:
     build:
-      context: ./frontend 
+      context: ./frontend
     ports:
       - 3000
 
@@ -37,16 +37,16 @@ services:
       - osrm-lk
     environment:
       - MYSQL_ROOT_PASSWORD
-    build: 
+    build:
       context: ./backend
-    ports: 
+    ports:
       - 9090
     restart: unless-stopped
 
   nginx:
     image: nginx:stable-alpine
     ports:
-      - "8080:80"
+      - "8081:80"
     volumes:
       - ./nginx/prod:/etc/nginx/conf.d:ro
     depends_on:
