@@ -13,7 +13,7 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "leaflet-defaulticon-compatibility";
 import "leaflet-defaulticon-compatibility/dist/leaflet-defaulticon-compatibility.css";
-import { TransportOption } from "@/lib/types";
+import { TransportOption, Trip } from "@/lib/types";
 
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -25,7 +25,6 @@ L.Icon.Default.mergeOptions({
     "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
 });
 
-// Custom icons for different marker types
 const createCustomIcon = (color: string) => {
   return L.divIcon({
     className: "custom-div-icon",
@@ -35,16 +34,31 @@ const createCustomIcon = (color: string) => {
   });
 };
 
+const createBusIcon = () => {
+  return L.divIcon({
+    className: "custom-bus-icon",
+    html: `<div style="background-color: #f59e0b; width: 30px; height: 30px; border-radius: 6px; border: 3px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; font-size: 16px;">🚌</div>`,
+    iconSize: [30, 30],
+    iconAnchor: [15, 15],
+  });
+};
+
 const userLocationIcon = createCustomIcon("#3b82f6");
 const startIcon = createCustomIcon("#10b981");
 const endIcon = createCustomIcon("#ef4444");
+const busIcon = createBusIcon();
 
 type Props = {
   position: [number, number];
   selectedRoute?: TransportOption | null;
+  selectedTrips?: Trip[];
 };
 
-export default function Map({ position, selectedRoute }: Props) {
+export default function Map({
+  position,
+  selectedRoute,
+  selectedTrips = [],
+}: Props) {
   const [routeCoordinates, setRouteCoordinates] = useState<[number, number][]>(
     []
   );
@@ -109,6 +123,26 @@ export default function Map({ position, selectedRoute }: Props) {
           </Marker>
         </>
       )}
+
+      {selectedTrips.map((trip) => (
+        <Marker
+          key={trip.id}
+          position={[trip.Loc_LAT, trip.Loc_LON]}
+          icon={busIcon}
+        >
+          <Popup>
+            <div className="text-sm">
+              <strong>Trip #{trip.id}</strong>
+              <br />
+              Direction: {trip.Direction}
+              <br />
+              Progress: {(trip.Loc_Frac * 100).toFixed(1)}%
+              <br />
+              Last update: {new Date(trip.Loc_TimeStamp).toLocaleTimeString()}
+            </div>
+          </Popup>
+        </Marker>
+      ))}
     </MapContainer>
   );
 }
