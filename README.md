@@ -118,15 +118,6 @@ Access at: http://localhost:8080
 - **Hot Reload**: Development mode with automatic recompilation
 - **Production Ready**: Optimized builds with minimal resource footprint
 
-#### **Ballerina Advantages in Transportation Domain**
-
-- **Real-time Data Processing**: Stream processing capabilities for live vehicle tracking
-- **Geospatial Operations**: Built-in support for coordinate calculations
-- **API Gateway Patterns**: Easy integration with external mapping services
-- **Data Transformation**: Powerful query expressions for route optimization
-- **Resilience**: Circuit breaker and retry patterns for external service calls
-- **Observability**: Built-in metrics, tracing, and logging capabilities
-
 ### Database (MySQL)
 
 - **Schema**:
