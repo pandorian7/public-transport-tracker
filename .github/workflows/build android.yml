@@ -32,6 +32,10 @@ jobs:
       - name: Verify Expo login
         run: eas whoami
         working-directory: mobile
+      
+      - name: Initialize EAS project
+        run: eas init --non-interactive
+        working-directory: mobile
 
       - name: Build Android APK
         run: eas build --platform android --profile production --non-interactive
