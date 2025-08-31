@@ -24,7 +24,14 @@ import {
   Search,
   Loader2,
 } from "lucide-react";
-import { Location, Route, Status, TransportOption, Place } from "@/lib/types";
+import {
+  Location,
+  Route,
+  Status,
+  TransportOption,
+  Place,
+  Trip,
+} from "@/lib/types";
 import { SpinnerLoader } from "@/components/loader";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -32,6 +39,8 @@ import {
   searchPlaces,
   createRouteSegment,
   saveCurrentLocationAsPlace,
+  getAllTrips,
+  getTripById,
 } from "@/lib/actions";
 
 const Map = dynamic(() => import("@/components/dashboard/map"), {
@@ -57,6 +66,8 @@ export default function TransportDashboard() {
     "A" | "B" | null
   >(null);
 
+  const [selectedTrips, setSelectedTrips] = useState<Trip[]>([]);
+
   const queryClient = useQueryClient();
 
   const { data, isLoading } = useQuery<Status | undefined>({
@@ -65,7 +76,17 @@ export default function TransportDashboard() {
     refetchInterval: 5 * 60 * 1000,
   });
 
+  const { data: tripsData, isLoading: isLoadingTrips } = useQuery<
+    Status | undefined
+  >({
+    queryKey: ["trips"],
+    queryFn: () => getAllTrips(),
+    refetchInterval: 5 * 1000,
+  });
+
   const routes = (data?.data as Route[]) ?? [];
+  const trips = (tripsData?.data as Trip[]) ?? [];
+  console.log(trips);
 
   const transformRouteToTransportOption = (route: Route) => {
     return {
@@ -176,6 +197,20 @@ export default function TransportDashboard() {
     }
   };
 
+  // Trip selection handler
+  const handleTripClick = (trip: Trip) => {
+    setSelectedTrips((prev) => {
+      const isSelected = prev.some((t) => t.id === trip.id);
+      if (isSelected) {
+        // Remove trip if already selected
+        return prev.filter((t) => t.id !== trip.id);
+      } else {
+        // Add trip to selection
+        return [...prev, trip];
+      }
+    });
+  };
+
   useEffect(() => {
     if (typeof window !== "undefined" && navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
@@ -209,7 +244,7 @@ export default function TransportDashboard() {
           </p>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-4 md:grid-cols-3">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-lg">
@@ -272,6 +307,39 @@ export default function TransportDashboard() {
                 <MapPin className="mr-2 h-4 w-4" />
                 Plan New Route
               </Button>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <Navigation className="h-5 w-5 text-foreground" />
+                Trips Overview
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="space-y-2">
+                <p className="text-sm text-muted-foreground">
+                  {isLoadingTrips ? (
+                    <span className="flex items-center gap-2">
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                      Loading trips...
+                    </span>
+                  ) : trips.length > 0 ? (
+                    `${trips.length} active trip${
+                      trips.length > 1 ? "s" : ""
+                    } tracked by mobile app`
+                  ) : (
+                    "No active trips"
+                  )}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Trips are created and managed through the mobile application
+                </p>
+                <p className="text-xs text-blue-600 mt-1">
+                  💡 Click on any trip below to show its location on the map
+                </p>
+              </div>
             </CardContent>
           </Card>
 
@@ -440,39 +508,48 @@ export default function TransportDashboard() {
               </div>
             ) : transportOptions.length > 0 ? (
               <div className="space-y-3">
-                {transportOptions.map((option) => (
-                  <div
-                    key={option.id}
-                    className={`flex items-center justify-between p-4 rounded-lg border bg-card hover:bg-accent/5 transition-colors cursor-pointer ${
-                      selectedRoute?.id === option.id
-                        ? "ring-2 ring-primary"
-                        : ""
-                    }`}
-                    onClick={() => setSelectedRoute(option)}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                        <MapPin className="h-5 w-5 text-primary" />
-                      </div>
-                      <div>
-                        <p className="font-medium">{option.route}</p>
-                        <p className="text-sm text-muted-foreground">
-                          • {option.distance} km
-                        </p>
+                {transportOptions.map((option) => {
+                  const route = routes.find(
+                    (r) => r.id.toString() === option.id
+                  );
+                  return (
+                    <div
+                      key={option.id}
+                      className={`p-4 rounded-lg border bg-card hover:bg-accent/5 transition-colors ${
+                        selectedRoute?.id === option.id
+                          ? "ring-2 ring-primary"
+                          : ""
+                      }`}
+                    >
+                      <div
+                        className="flex items-center justify-between cursor-pointer mb-3"
+                        onClick={() => setSelectedRoute(option)}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                            <MapPin className="h-5 w-5 text-primary" />
+                          </div>
+                          <div>
+                            <p className="font-medium">{option.route}</p>
+                            <p className="text-sm text-muted-foreground">
+                              • {option.distance} km
+                            </p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-semibold text-foreground">
+                            Route #{option.id}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {selectedRoute?.id === option.id
+                              ? "viewing"
+                              : "click to view"}
+                          </p>
+                        </div>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <p className="font-semibold text-foreground">
-                        Route #{option.id}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {selectedRoute?.id === option.id
-                          ? "viewing"
-                          : "click to view"}
-                      </p>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <div className="text-center p-8">
@@ -531,6 +608,93 @@ export default function TransportDashboard() {
           </Card>
         )}
 
+        {trips.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between">
+                <span className="flex items-center gap-2">
+                  <Navigation className="h-5 w-5" />
+                  Active Trips
+                  {isLoadingTrips && (
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-foreground border-t-transparent" />
+                  )}
+                </span>
+                {selectedTrips.length > 0 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setSelectedTrips([])}
+                  >
+                    Clear Selection ({selectedTrips.length})
+                  </Button>
+                )}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {selectedTrips.length > 0 && (
+                <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                  <p className="text-sm font-medium text-blue-800 mb-1">
+                    📍 {selectedTrips.length} trip
+                    {selectedTrips.length > 1 ? "s" : ""} shown on map
+                  </p>
+                  <p className="text-xs text-blue-600">
+                    Click on trip cards below to show/hide them on the map
+                  </p>
+                </div>
+              )}
+              <div className="space-y-3">
+                {trips.map((trip) => {
+                  const tripRoute = routes.find((r) => r.id === trip.Route_Id);
+                  const isSelected = selectedTrips.some(
+                    (t) => t.id === trip.id
+                  );
+                  return (
+                    <div
+                      key={trip.id}
+                      className={`p-3 rounded-lg border cursor-pointer transition-colors ${
+                        isSelected
+                          ? "bg-blue-50 border-blue-200 ring-2 ring-blue-500"
+                          : "bg-card hover:bg-accent/5"
+                      }`}
+                      onClick={() => handleTripClick(trip)}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-medium text-sm">
+                            Trip #{trip.id}
+                            {isSelected && (
+                              <span className="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                                📍 Shown on map
+                              </span>
+                            )}
+                          </p>
+                          {tripRoute && (
+                            <p className="text-xs text-muted-foreground">
+                              {tripRoute.A_Name} → {tripRoute.B_Name}
+                            </p>
+                          )}
+                          <p className="text-xs text-muted-foreground">
+                            Direction: {trip.Direction} • Last update:{" "}
+                            {new Date(trip.Loc_TimeStamp).toLocaleTimeString()}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xs text-muted-foreground">
+                            {trip.Loc_LAT.toFixed(4)}, {trip.Loc_LON.toFixed(4)}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            Progress: {(trip.Loc_Frac * 100).toFixed(1)}%
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         <Card>
           <CardHeader>
             <CardTitle>
@@ -538,6 +702,12 @@ export default function TransportDashboard() {
               {selectedRoute && (
                 <span className="text-sm font-normal text-muted-foreground ml-2">
                   - Showing: {selectedRoute.route}
+                </span>
+              )}
+              {selectedTrips.length > 0 && (
+                <span className="text-sm font-normal text-blue-600 ml-2">
+                  - {selectedTrips.length} trip
+                  {selectedTrips.length > 1 ? "s" : ""} 🚌
                 </span>
               )}
             </CardTitle>
@@ -548,6 +718,7 @@ export default function TransportDashboard() {
                 <Map
                   position={[currentLocation?.lat, currentLocation.lng]}
                   selectedRoute={selectedRoute}
+                  selectedTrips={selectedTrips}
                 />
               )}
             </div>
@@ -571,15 +742,19 @@ export default function TransportDashboard() {
             <CardContent className="pt-6">
               <div className="text-center">
                 <p className="text-2xl font-bold text-foreground">
-                  {isLoading
-                    ? "..."
-                    : transportOptions.length > 0
-                    ? `${transportOptions[0].distance} km`
-                    : "N/A"}
+                  {isLoadingTrips ? "..." : trips.length}
                 </p>
-                <p className="text-sm text-muted-foreground">
-                  First Route Distance
+                <p className="text-sm text-muted-foreground">Total Trips</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6">
+              <div className="text-center">
+                <p className="text-2xl font-bold text-foreground">
+                  {isLoadingTrips ? "..." : trips.length}
                 </p>
+                <p className="text-sm text-muted-foreground">Active Trips</p>
               </div>
             </CardContent>
           </Card>
@@ -598,24 +773,6 @@ export default function TransportDashboard() {
                     : "N/A"}
                 </p>
                 <p className="text-sm text-muted-foreground">Shortest Route</p>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="text-center">
-                <p className="text-2xl font-bold text-foreground">
-                  {isLoading
-                    ? "..."
-                    : transportOptions.length > 0
-                    ? `${Math.max(
-                        ...transportOptions.map((option) =>
-                          parseFloat(option.distance)
-                        )
-                      ).toFixed(1)} km`
-                    : "N/A"}
-                </p>
-                <p className="text-sm text-muted-foreground">Longest Route</p>
               </div>
             </CardContent>
           </Card>

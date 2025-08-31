@@ -227,3 +227,93 @@ export const saveCurrentLocationAsPlace = async (
     }
   }
 };
+
+// trips actions
+export const getAllTrips = async () => {
+  try {
+    const response = await axiosPublic.get("trips");
+    console.log(response.data);
+    return {
+      status: "success",
+      data: response.data,
+      message: "Trips fetched successfully",
+    } as Status;
+  } catch (error) {
+    console.log(error, "FETCHING ALL TRIPS ERROR");
+    if (isAxiosError(error)) {
+      return {
+        status: "error",
+        message: error.response?.data.message,
+      } as Status;
+    }
+  }
+};
+
+// get specific trip by ID
+export const getTripById = async (id: number) => {
+  try {
+    const response = await axiosPublic.get(`trips/${id}`);
+    console.log(response.data);
+    return {
+      status: "success",
+      data: response.data,
+      message: "Trip fetched successfully",
+    } as Status;
+  } catch (error) {
+    console.log(error, "FETCH TRIP BY ID ERROR");
+    if (isAxiosError(error)) {
+      return {
+        status: "error",
+        message: error.response?.data.message,
+      } as Status;
+    }
+  }
+};
+
+// create a new trip (temporary for testing)
+export const createTrip = async (routeId: number, direction: "forward" | "backward") => {
+  try {
+    const response = await axiosPublic.post("trips", {
+      route_id: routeId,
+      direction: direction,
+    });
+    console.log(response.data);
+    return {
+      status: "success",
+      data: response.data,
+      message: "Trip created successfully",
+    } as Status;
+  } catch (error) {
+    console.log(error, "CREATE TRIP ERROR");
+    if (isAxiosError(error)) {
+      return {
+        status: "error",
+        message: error.response?.data.message,
+      } as Status;
+    }
+  }
+};
+
+// update trip location (temporary for testing)
+export const updateTripLocation = async (
+  tripId: number,
+  location: { Loc_LAT: number; Loc_LON: number }
+) => {
+  try {
+    const response = await axiosPublic.put(`trips/${tripId}`, location);
+    console.log(response.data);
+    return {
+      status: "success",
+      data: response.data,
+      message: "Trip location updated successfully",
+    } as Status;
+  } catch (error) {
+    console.log(error, "UPDATE TRIP LOCATION ERROR");
+    if (isAxiosError(error)) {
+      return {
+        status: "error",
+        message: error.response?.data.message,
+      } as Status;
+    }
+  }
+};
