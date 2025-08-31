@@ -35,11 +35,13 @@ services:
     depends_on:
       - database
       - osrm-lk
+    environment:
+      - MYSQL_ROOT_PASSWORD
     build: 
       context: ./backend
     ports: 
       - 9090
-    restart: on-failure
+    restart: unless-stopped
 
   nginx:
     image: nginx:stable-alpine

@@ -29,6 +29,11 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile.dev
+    environment:
+      - NODE_ENV=development
+      - HOSTNAME=0.0.0.0
+      - PORT=3000
+      - BACKEND_INTERNAL_URL=http://backend:9090
     volumes:
       - ./frontend:/app
       - /app/node_modules
@@ -39,6 +44,8 @@ services:
     depends_on:
       - database
       - osrm-lk
+    environment:
+      - MYSQL_ROOT_PASSWORD
     build:
       context: ./backend
       dockerfile: Dockerfile.dev
@@ -47,7 +54,7 @@ services:
       - /app/target
     ports:
       - 9090
-    restart: on-failure
+    restart: unless-stopped
 
   nginx:
     image: nginx:stable-alpine

@@ -1,5 +1,3 @@
-import { SiteHeader } from "@/components/site-header";
-import { SiteFooter } from "@/components/site-footer";
 import { Button } from "@/components/ui/button";
 import { ArrowRight } from "lucide-react";
 import Link from "next/link";
@@ -7,7 +5,6 @@ import Link from "next/link";
 export default function HomePage() {
   return (
     <main className="flex-1">
-      {/* Hero Section */}
       <section
         className="relative mt-6 min-h-[600px] md:min-h-[700px] rounded-sm flex items-center justify-center"
         style={{
@@ -40,7 +37,7 @@ export default function HomePage() {
               </p>
             </div>
 
-            <Link href="/login">
+            <Link href="/dashboard">
               <Button
                 size="lg"
                 className="bg-black text-white font-bold hover:bg-gray-800 px-8 py-3 text-lg  group"
