@@ -17,6 +17,10 @@ jobs:
         with:
           node-version: 20
 
+      - name: Set Expo token
+        run: echo "EXPO_TOKEN=${{ secrets.EXPO_TOKEN }}" >> $GITHUB_ENV
+        working-directory: mobile
+
       - name: Install dependencies
         run: npm install
         working-directory: mobile
@@ -25,8 +29,8 @@ jobs:
         run: npm install -g eas-cli
         working-directory: mobile
 
-      - name: Login to Expo
-        run: eas login --token ${{ secrets.EXPO_TOKEN }}
+      - name: Verify Expo login
+        run: eas whoami
         working-directory: mobile
 
       - name: Build Android APK
