@@ -35,6 +35,8 @@ services:
     depends_on:
       - database
       - osrm-lk
+    environment:
+      - MYSQL_ROOT_PASSWORD
     build: 
       context: ./backend
     ports: 
