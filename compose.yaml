@@ -49,7 +49,7 @@ services:
       - /app/target
     ports: 
       - 9090
-    restart: on-failure
+    restart: unless-stopped
 
   nginx:
     image: nginx:stable-alpine
