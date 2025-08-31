@@ -48,6 +48,51 @@ const startIcon = createCustomIcon("#10b981");
 const endIcon = createCustomIcon("#ef4444");
 const busIcon = createBusIcon();
 
+// Component for trip markers that updates positions without disrupting map view
+function TripMarkers({
+  selectedTrips,
+  formatTimestamp,
+}: {
+  selectedTrips: Trip[];
+  formatTimestamp: (timestamp: Trip["Loc_TimeStamp"]) => string;
+}) {
+  return (
+    <>
+      {selectedTrips.map((trip) => {
+        // Create a simpler key that still ensures updates but is less aggressive
+        const locationKey = `${trip.Loc_LAT.toFixed(6)}-${trip.Loc_LON.toFixed(
+          6
+        )}`;
+        const timeKey = `${trip.Loc_TimeStamp.hour}:${trip.Loc_TimeStamp.minute}:${trip.Loc_TimeStamp.second}`;
+
+        return (
+          <Marker
+            key={`trip-${trip.id}-${locationKey}-${timeKey}`}
+            position={[trip.Loc_LAT, trip.Loc_LON]}
+            icon={busIcon}
+          >
+            <Popup>
+              <div className="text-sm">
+                <strong>Trip #{trip.id}</strong>
+                <br />
+                Direction: {trip.Direction}
+                <br />
+                Progress: {(trip.Loc_Frac * 100).toFixed(1)}%
+                <br />
+                Last update: {formatTimestamp(trip.Loc_TimeStamp)}
+                <br />
+                <small>
+                  Lat: {trip.Loc_LAT.toFixed(6)}, Lng: {trip.Loc_LON.toFixed(6)}
+                </small>
+              </div>
+            </Popup>
+          </Marker>
+        );
+      })}
+    </>
+  );
+}
+
 type Props = {
   position: [number, number];
   selectedRoute?: TransportOption | null;
@@ -137,25 +182,10 @@ export default function Map({
         </>
       )}
 
-      {selectedTrips.map((trip) => (
-        <Marker
-          key={trip.id}
-          position={[trip.Loc_LAT, trip.Loc_LON]}
-          icon={busIcon}
-        >
-          <Popup>
-            <div className="text-sm">
-              <strong>Trip #{trip.id}</strong>
-              <br />
-              Direction: {trip.Direction}
-              <br />
-              Progress: {(trip.Loc_Frac * 100).toFixed(1)}%
-              <br />
-              Last update: {formatTimestamp(trip.Loc_TimeStamp)}
-            </div>
-          </Popup>
-        </Marker>
-      ))}
+      <TripMarkers
+        selectedTrips={selectedTrips}
+        formatTimestamp={formatTimestamp}
+      />
     </MapContainer>
   );
 }
