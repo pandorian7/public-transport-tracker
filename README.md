@@ -58,7 +58,7 @@ graph TB
 docker compose up --build
 ```
 
-Access at: http://localhost:8081
+Access at: http://localhost:8080
 
 ### Production Mode
 
