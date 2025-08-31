@@ -66,7 +66,8 @@ export default function TransportDashboard() {
     "A" | "B" | null
   >(null);
 
-  const [selectedTrips, setSelectedTrips] = useState<Trip[]>([]);
+  // Store only trip IDs instead of full trip objects to ensure we always use latest data
+  const [selectedTripIds, setSelectedTripIds] = useState<number[]>([]);
 
   const queryClient = useQueryClient();
 
@@ -86,7 +87,11 @@ export default function TransportDashboard() {
 
   const routes = (data?.data as Route[]) ?? [];
   const trips = (tripsData?.data as Trip[]) ?? [];
-  console.log(trips, "TRIPS");
+
+  // Get the latest trip data for selected trips - this ensures we always show current locations
+  const selectedTrips = trips.filter(
+    (trip) => trip.id && selectedTripIds.includes(trip.id)
+  );
 
   const transformRouteToTransportOption = (route: Route) => {
     return {
@@ -211,14 +216,17 @@ export default function TransportDashboard() {
 
   // Trip selection handler
   const handleTripClick = (trip: Trip) => {
-    setSelectedTrips((prev) => {
-      const isSelected = prev.some((t) => t.id === trip.id);
+    if (!trip.id) return; // Guard against undefined id
+
+    const tripId = trip.id; // Extract to a const for type safety
+    setSelectedTripIds((prev) => {
+      const isSelected = prev.includes(tripId);
       if (isSelected) {
         // Remove trip if already selected
-        return prev.filter((t) => t.id !== trip.id);
+        return prev.filter((id) => id !== tripId);
       } else {
         // Add trip to selection
-        return [...prev, trip];
+        return [...prev, tripId];
       }
     });
   };
@@ -635,7 +643,7 @@ export default function TransportDashboard() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => setSelectedTrips([])}
+                    onClick={() => setSelectedTripIds([])}
                   >
                     Clear Selection ({selectedTrips.length})
                   </Button>
@@ -657,9 +665,9 @@ export default function TransportDashboard() {
               <div className="space-y-3">
                 {trips.map((trip) => {
                   const tripRoute = routes.find((r) => r.id === trip.Route_Id);
-                  const isSelected = selectedTrips.some(
-                    (t) => t.id === trip.id
-                  );
+                  const isSelected = trip.id
+                    ? selectedTripIds.includes(trip.id)
+                    : false;
                   return (
                     <div
                       key={trip.id}
