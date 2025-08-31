@@ -1,6 +1,6 @@
 import ballerina/http;
 import ballerina/sql;
-import ballerina/io;
+import ballerina/time;
 
 service / on new http:Listener(9090) {
 
@@ -9,7 +9,7 @@ service / on new http:Listener(9090) {
 
     function init() returns error? {
         self.openStreet = check new ("https://nominatim.openstreetmap.org");
-        self.osrm = check new("http://osrm-lk:5000");
+        self.osrm = check new ("http://osrm-lk:5000");
     }
 
     resource function get routes() returns Route[]|error {
@@ -35,7 +35,7 @@ service / on new http:Listener(9090) {
         return places;
     }
 
-    resource function get routes/segment(int A, int B) returns Route | http:NotFound | error {
+    resource function get routes/segment(int A, int B) returns Route|http:NotFound|error {
 
         Place|sql:Error PointA = db->queryRow(`SELECT * FROM places WHERE id = ${A}`);
 
@@ -73,8 +73,6 @@ service / on new http:Listener(9090) {
 
         json res = (<json[]>(check data.routes))[0];
 
-        io:println(res);
-
         string geometry = check res.geometry;
 
         decimal distance = check res.distance;
@@ -102,4 +100,94 @@ service / on new http:Listener(9090) {
             return result;
         }
     }
+
+    resource function get trips() returns Trip[]|error {
+        stream<Trip, sql:Error?> trips = db->query(`SELECT * FROM trips`);
+        return from Trip trip in trips
+            select trip;
+    }
+
+    resource function get trips/[int id]() returns Trip|http:NotFound|error {
+        Trip|sql:Error trip = db->queryRow(`SELECT * FROM trips WHERE id = ${id}`);
+
+        if trip is sql:NoRowsError {
+            return http:NOT_FOUND;
+        }
+
+        return trip;
+    }
+
+    resource function post trips(int route_id, Direction direction) returns Trip | http:NotFound|error {
+
+        Route|sql:Error route = db->queryRow(`SELECT * FROM routes WHERE id = ${route_id}`);
+
+        if route is sql:NoRowsError {
+            return http:NOT_FOUND;
+        }
+
+        if route is error {
+            return route;
+        }
+
+        decimal Loc_LAT;
+        decimal Loc_LON;
+
+        if direction == "forward" {
+            Loc_LAT = route.A_LAT;
+            Loc_LON = route.A_LON;
+        } else {
+            Loc_LAT = route.B_LAT;
+            Loc_LON = route.B_LON;
+        }
+
+        Trip trip = {
+            Route_Id: route_id,
+            Direction: direction,
+            Loc_LAT: Loc_LAT,
+            Loc_LON: Loc_LON,
+            Loc_Frac: 0,
+            Loc_TimeStamp: time:utcToCivil(time:utcNow())
+        };
+
+        var result = check db->execute(`INSERT INTO trips (Route_Id, Direction, Loc_LAT, Loc_LON, Loc_Frac, Loc_TimeStamp)
+        VALUES (${route_id}, ${direction}, ${trip.Loc_LAT}, ${trip.Loc_LON}, ${trip.Loc_Frac}, ${trip.Loc_TimeStamp})`);
+
+
+        int trip_id = <int>result.lastInsertId;
+
+        trip.id = trip_id;
+
+        return trip;
+
+    }
+
+    resource function put trips/[int id](@http:Payload Location location) returns Trip | http:NotFound | error {
+
+        Trip|sql:Error trip = db->queryRow(`SELECT * FROM trips WHERE id = ${id}`);
+
+        if trip is sql:NoRowsError {
+            return http:NOT_FOUND;
+        }
+
+        if trip is sql:Error {
+            return trip;
+        }
+
+        var timestamp = time:utcToCivil(time:utcNow());
+
+        trip.Loc_LAT = location.Loc_LAT;
+        trip.Loc_LON = location.Loc_LON;
+
+        // update fraction
+
+        trip.Loc_TimeStamp = timestamp;
+
+        _ = check db->execute(`INSERT INTO locations (Trip_Id, Loc_LAT, Loc_LON, Loc_Frac, Loc_TimeStamp)
+            VALUES (${id}, ${trip.Loc_LAT}, ${trip.Loc_LON}, ${trip.Loc_Frac}, ${trip.Loc_TimeStamp})`);
+
+        _ = check db->execute(`UPDATE trips SET Loc_LAT = ${trip.Loc_LAT}, Loc_LON = ${trip.Loc_LON},
+            Loc_Frac = ${0}, Loc_TimeStamp = ${trip.Loc_TimeStamp} where id = ${id}`);
+
+        return trip;
+    } 
 }

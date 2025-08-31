@@ -28,7 +28,7 @@ type Direction "forward" | "backward";
 type Trip record {|
     int? id = ();
     int Route_Id;
-    Direction Direction;
+    string Direction;
     *Location;
     decimal Loc_Frac;
     time:Civil Loc_TimeStamp;
