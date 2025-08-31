@@ -74,5 +74,12 @@ export type Trip = {
   Loc_LAT: number;
   Loc_LON: number;
   Loc_Frac: number;
-  Loc_TimeStamp: string;
+  Loc_TimeStamp: {
+    year: number;
+    month: number;
+    day: number;
+    hour: number;
+    minute: number;
+    second: number;
+  };
 };

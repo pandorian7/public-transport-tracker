@@ -63,6 +63,19 @@ export default function Map({
     []
   );
 
+  // Helper function to format the timestamp from backend
+  const formatTimestamp = (timestamp: Trip["Loc_TimeStamp"]) => {
+    const date = new Date(
+      timestamp.year,
+      timestamp.month - 1, // Month is 0-indexed in JavaScript Date
+      timestamp.day,
+      timestamp.hour,
+      timestamp.minute,
+      timestamp.second
+    );
+    return date.toLocaleTimeString();
+  };
+
   useEffect(() => {
     if (selectedRoute?.polyline) {
       try {
@@ -138,7 +151,7 @@ export default function Map({
               <br />
               Progress: {(trip.Loc_Frac * 100).toFixed(1)}%
               <br />
-              Last update: {new Date(trip.Loc_TimeStamp).toLocaleTimeString()}
+              Last update: {formatTimestamp(trip.Loc_TimeStamp)}
             </div>
           </Popup>
         </Marker>
