@@ -60,14 +60,6 @@ docker compose up --build
 
 Access at: http://localhost:8081
 
-### Production Mode
-
-```bash
-docker compose -f compose.production.yaml up --build
-```
-
-Access at: http://localhost:8081
-
 ## 📋 Prerequisites
 
 - Docker & Docker Compose
