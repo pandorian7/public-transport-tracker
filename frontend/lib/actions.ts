@@ -111,3 +111,119 @@ export const completeOnboarding = async (userId: string, data: FieldValues) => {
     }
   }
 };
+
+//routes actions
+export const getAllRoutes = async () => {
+  try {
+    const response = await axiosPublic.get("routes");
+    console.log(response.data);
+    return {
+      status: "success",
+      data: response.data,
+      message: response.data.message as string,
+    } as Status;
+  } catch (error) {
+    console.log(error, "FETCHING ALL ROUTES ERROR");
+    if (isAxiosError(error)) {
+      return {
+        status: "error",
+        message: error.response?.data.message,
+      } as Status;
+    }
+  }
+};
+
+// search places by querry
+export const searchPlaces = async (query: string) => {
+  try {
+    const response = await axiosPublic.get(
+      `routes/search?query=${encodeURIComponent(query)}`
+    );
+    console.log(response.data);
+    return {
+      status: "success",
+      data: response.data,
+      message: "Places found successfully",
+    } as Status;
+  } catch (error) {
+    console.log(error, "SEARCH PLACES ERROR");
+    if (isAxiosError(error)) {
+      return {
+        status: "error",
+        message: error.response?.data.message,
+      } as Status;
+    }
+  }
+};
+
+// create route between two places
+export const createRouteSegment = async (placeA: number, placeB: number) => {
+  try {
+    const response = await axiosPublic.get(
+      `routes/segment?A=${placeA}&B=${placeB}`
+    );
+    console.log(response.data);
+    return {
+      status: "success",
+      data: response.data,
+      message: "Route created successfully",
+    } as Status;
+  } catch (error) {
+    console.log(error, "CREATE ROUTE ERROR");
+    if (isAxiosError(error)) {
+      return {
+        status: "error",
+        message: error.response?.data.message,
+      } as Status;
+    }
+  }
+};
+
+// get specific route by ID
+export const getRouteById = async (id: number) => {
+  try {
+    const response = await axiosPublic.get(`routes/${id}`);
+    console.log(response.data);
+    return {
+      status: "success",
+      data: response.data,
+      message: "Route fetched successfully",
+    } as Status;
+  } catch (error) {
+    console.log(error, "FETCH ROUTE BY ID ERROR");
+    if (isAxiosError(error)) {
+      return {
+        status: "error",
+        message: error.response?.data.message,
+      } as Status;
+    }
+  }
+};
+
+// save current location as a place
+export const saveCurrentLocationAsPlace = async (
+  lat: number,
+  lng: number,
+  name: string = "My Location"
+) => {
+  try {
+    const locationQuery = `${lat},${lng}`;
+    const response = await axiosPublic.get(
+      `routes/search?query=${encodeURIComponent(locationQuery)}`
+    );
+    console.log(response.data);
+    return {
+      status: "success",
+      data: response.data,
+      message: "Current location saved successfully",
+    } as Status;
+  } catch (error) {
+    console.log(error, "SAVE CURRENT LOCATION ERROR");
+    if (isAxiosError(error)) {
+      return {
+        status: "error",
+        message: error.response?.data.message,
+      } as Status;
+    }
+  }
+};

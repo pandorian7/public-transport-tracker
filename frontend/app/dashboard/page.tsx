@@ -6,48 +6,177 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { MapPin, Navigation, Clock, Bus, Train, Zap } from "lucide-react";
-import { Location, TransportOption } from "@/lib/types";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  MapPin,
+  Navigation,
+  Clock,
+  Route as RouteIcon,
+  Plus,
+  Search,
+  Loader2,
+} from "lucide-react";
+import { Location, Route, Status, TransportOption, Place } from "@/lib/types";
 import { SpinnerLoader } from "@/components/loader";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  getAllRoutes,
+  searchPlaces,
+  createRouteSegment,
+  saveCurrentLocationAsPlace,
+} from "@/lib/actions";
 
-const Map = dynamic(() => import("@/components/dashboard.tsx/map"), {
+const Map = dynamic(() => import("@/components/dashboard/map"), {
   ssr: false,
   loading: () => <SpinnerLoader />,
 });
 
 export default function TransportDashboard() {
   const [currentLocation, setCurrentLocation] = useState<Location | null>(null);
-  const [destination, setDestination] = useState("");
   const [isLoadingLocation, setIsLoadingLocation] = useState(true);
-  const [transportOptions, setTransportOptions] = useState<TransportOption[]>([
-    {
-      id: "1",
-      type: "bus",
-      route: "Bus 42",
-      arrival: "5 min",
-      duration: "25 min",
-      stops: 8,
-    },
-    {
-      id: "2",
-      type: "train",
-      route: "Metro Line 1",
-      arrival: "8 min",
-      duration: "18 min",
-      stops: 5,
-    },
-    {
-      id: "3",
-      type: "bus",
-      route: "Bus 156",
-      arrival: "12 min",
-      duration: "32 min",
-      stops: 12,
-    },
-  ]);
+  const [selectedRoute, setSelectedRoute] = useState<TransportOption | null>(
+    null
+  );
+
+  const [isRouteModalOpen, setIsRouteModalOpen] = useState(false);
+  const [pointA, setPointA] = useState<Place | null>(null);
+  const [pointB, setPointB] = useState<Place | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<Place[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [isCreatingRoute, setIsCreatingRoute] = useState(false);
+  const [activePointSelection, setActivePointSelection] = useState<
+    "A" | "B" | null
+  >(null);
+
+  const queryClient = useQueryClient();
+
+  const { data, isLoading } = useQuery<Status | undefined>({
+    queryKey: ["routes"],
+    queryFn: () => getAllRoutes(),
+    refetchInterval: 5 * 60 * 1000,
+  });
+
+  const routes = (data?.data as Route[]) ?? [];
+
+  const transformRouteToTransportOption = (route: Route) => {
+    return {
+      id: route.id.toString(),
+      route: `${route.A_Name} → ${route.B_Name}`,
+      distance: route.distance.toFixed(1),
+      polyline: route.polyline,
+      coordinates: {
+        start: { lat: route.A_LAT, lng: route.A_LON },
+        end: { lat: route.B_LAT, lng: route.B_LON },
+      },
+    };
+  };
+
+  const transportOptions = routes.map(transformRouteToTransportOption);
+
+  console.log(routes);
+  console.log(data);
+
+  const handleSearch = async (query: string) => {
+    setSearchQuery(query);
+    if (query.length > 2) {
+      setIsSearching(true);
+      try {
+        const result = await searchPlaces(query);
+        if (result?.status === "success") {
+          setSearchResults(result.data as Place[]);
+        }
+      } catch (error) {
+        console.error("Search error:", error);
+      } finally {
+        setIsSearching(false);
+      }
+    } else {
+      setSearchResults([]);
+    }
+  };
+
+  const selectPlace = (place: Place) => {
+    if (activePointSelection === "A") {
+      setPointA(place);
+    } else if (activePointSelection === "B") {
+      setPointB(place);
+    }
+    setSearchQuery("");
+    setSearchResults([]);
+    setActivePointSelection(null);
+  };
+
+  const useCurrentLocationAsPointA = () => {
+    if (currentLocation) {
+      const currentPlace: Place = {
+        place_id: 0, // just to identify current location
+        lat: currentLocation.lat,
+        lon: currentLocation.lng,
+        name: `Current Location (${currentLocation.lat.toFixed(
+          4
+        )}, ${currentLocation.lng.toFixed(4)})`,
+      };
+      setPointA(currentPlace);
+    }
+  };
+
+  const handleCreateRoute = async () => {
+    if (!pointA || !pointB) return;
+
+    setIsCreatingRoute(true);
+    try {
+      let pointAId: number;
+      let pointBId: number;
+
+      // Save Point A if it's current location (place_id = 0)
+      if (pointA.place_id === 0) {
+        const saveResult = await saveCurrentLocationAsPlace(
+          pointA.lat,
+          pointA.lon,
+          pointA.name
+        );
+        if (saveResult?.status === "success") {
+          const places = saveResult.data as Place[];
+          pointAId = places[0]?.place_id || 1;
+        } else {
+          throw new Error("Failed to save Point A");
+        }
+      } else {
+        pointAId = pointA.place_id;
+      }
+
+      pointBId = pointB.place_id;
+
+      const result = await createRouteSegment(pointAId, pointBId);
+
+      if (result?.status === "success") {
+        queryClient.invalidateQueries({ queryKey: ["routes"] });
+
+        setIsRouteModalOpen(false);
+        setPointA(null);
+        setPointB(null);
+        setSearchQuery("");
+        setSearchResults([]);
+      } else {
+        throw new Error(result?.message || "Failed to create route");
+      }
+    } catch (error) {
+      console.error("Route creation error:", error);
+    } finally {
+      setIsCreatingRoute(false);
+    }
+  };
 
   useEffect(() => {
-    // Ensure we're on the client side before accessing navigator
     if (typeof window !== "undefined" && navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
@@ -68,36 +197,9 @@ export default function TransportDashboard() {
     }
   }, []);
 
-  const getTransportIcon = (type: string) => {
-    switch (type) {
-      case "bus":
-        return <Bus className="h-4 w-4" />;
-      case "train":
-        return <Train className="h-4 w-4" />;
-      case "metro":
-        return <Zap className="h-4 w-4" />;
-      default:
-        return <Bus className="h-4 w-4" />;
-    }
-  };
-
-  const getTransportColor = (type: string) => {
-    switch (type) {
-      case "bus":
-        return "bg-foreground text-background";
-      case "train":
-        return "bg-muted text-muted-foreground";
-      case "metro":
-        return "bg-border text-foreground";
-      default:
-        return "bg-foreground text-background";
-    }
-  };
-
   return (
     <div className="min-h-screen bg-background p-4 md:p-6">
       <div className="mx-auto max-w-7xl space-y-6">
-        {/* Header */}
         <div className="text-center space-y-2">
           <h1 className="text-3xl font-bold text-foreground">
             Transport Tracker
@@ -107,11 +209,9 @@ export default function TransportDashboard() {
           </p>
         </div>
 
-        {/* Location Cards */}
         <div className="grid gap-4 md:grid-cols-2">
-          {/* Current Location */}
           <Card>
-            <CardHeader className="pb-3">
+            <CardHeader>
               <CardTitle className="flex items-center gap-2 text-lg">
                 <MapPin className="h-5 w-5 text-foreground" />
                 Current Location
@@ -141,86 +241,326 @@ export default function TransportDashboard() {
             </CardContent>
           </Card>
 
-          {/* Destination Picker */}
           <Card>
-            <CardHeader className="pb-3">
+            <CardHeader>
               <CardTitle className="flex items-center gap-2 text-lg">
-                <Navigation className="h-5 w-5 text-foreground" />
-                Destination
+                <RouteIcon className="h-5 w-5 text-foreground" />
+                Plan Route
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              <Input
-                placeholder="Enter destination address..."
-                value={destination}
-                onChange={(e) => setDestination(e.target.value)}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="font-medium min-w-[60px]">From:</span>
+                  <span className="text-muted-foreground truncate">
+                    {pointA ? pointA.name : "Select starting point"}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="font-medium min-w-[60px]">To:</span>
+                  <span className="text-muted-foreground truncate">
+                    {pointB ? pointB.name : "Select destination"}
+                  </span>
+                </div>
+              </div>
+
+              <Button
                 className="w-full"
-              />
-              <Button className="w-full" disabled={!destination.trim()}>
-                Find Routes
+                onClick={() => setIsRouteModalOpen(true)}
+                size="sm"
+              >
+                <MapPin className="mr-2 h-4 w-4" />
+                Plan New Route
               </Button>
             </CardContent>
           </Card>
+
+          <Dialog open={isRouteModalOpen} onOpenChange={setIsRouteModalOpen}>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>Plan Your Route</DialogTitle>
+                <DialogDescription>
+                  Select your starting point and destination to create a new
+                  route.
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">
+                    Starting Point (A)
+                  </label>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={useCurrentLocationAsPointA}
+                      disabled={!currentLocation}
+                      className="flex-1"
+                    >
+                      <MapPin className="mr-1 h-3 w-3" />
+                      Current
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setActivePointSelection("A")}
+                      className="flex-1"
+                    >
+                      <Search className="mr-1 h-3 w-3" />
+                      Search
+                    </Button>
+                  </div>
+                  {pointA && (
+                    <div className="text-sm text-green-600 bg-green-50 p-2 rounded">
+                      ✓ {pointA.name}
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Destination (B)</label>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setActivePointSelection("B")}
+                    className="w-full"
+                  >
+                    <Search className="mr-1 h-3 w-3" />
+                    Search Destination
+                  </Button>
+                  {pointB && (
+                    <div className="text-sm text-green-600 bg-green-50 p-2 rounded">
+                      ✓ {pointB.name}
+                    </div>
+                  )}
+                </div>
+
+                {activePointSelection && (
+                  <div className="space-y-2">
+                    <Input
+                      type="text"
+                      placeholder={`Search for ${
+                        activePointSelection === "A"
+                          ? "starting point"
+                          : "destination"
+                      }...`}
+                      value={searchQuery}
+                      onChange={(e) => handleSearch(e.target.value)}
+                      className="w-full"
+                      autoFocus
+                    />
+
+                    {searchResults.length > 0 && (
+                      <div className="max-h-32 overflow-y-auto border rounded-md">
+                        {searchResults.map((place) => (
+                          <button
+                            key={place.place_id}
+                            className="w-full text-left p-2 hover:bg-gray-100 text-sm border-b last:border-b-0"
+                            onClick={() => selectPlace(place)}
+                          >
+                            {place.name}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <DialogFooter className="gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setIsRouteModalOpen(false);
+                    setActivePointSelection(null);
+                    setSearchQuery("");
+                    setSearchResults([]);
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleCreateRoute}
+                  disabled={!pointA || !pointB || isCreatingRoute}
+                >
+                  {isCreatingRoute ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Creating...
+                    </>
+                  ) : (
+                    "Create Route"
+                  )}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
 
-        {/* Map Placeholder */}
         <Card>
           <CardHeader>
-            <CardTitle>Route Map</CardTitle>
+            <CardTitle className="flex items-center justify-between">
+              <span className="flex items-center gap-2">
+                <Clock className="h-5 w-5" />
+                Available Routes
+                {isLoading && (
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-foreground border-t-transparent" />
+                )}
+              </span>
+              {selectedRoute && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSelectedRoute(null)}
+                >
+                  Clear Selection
+                </Button>
+              )}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <div className="flex items-center justify-center p-8">
+                <SpinnerLoader />
+              </div>
+            ) : data?.status === "error" ? (
+              <div className="text-center p-8">
+                <p className="text-muted-foreground">
+                  Failed to load routes: {data.message}
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="mt-2"
+                  onClick={() => window.location.reload()}
+                >
+                  Retry
+                </Button>
+              </div>
+            ) : transportOptions.length > 0 ? (
+              <div className="space-y-3">
+                {transportOptions.map((option) => (
+                  <div
+                    key={option.id}
+                    className={`flex items-center justify-between p-4 rounded-lg border bg-card hover:bg-accent/5 transition-colors cursor-pointer ${
+                      selectedRoute?.id === option.id
+                        ? "ring-2 ring-primary"
+                        : ""
+                    }`}
+                    onClick={() => setSelectedRoute(option)}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                        <MapPin className="h-5 w-5 text-primary" />
+                      </div>
+                      <div>
+                        <p className="font-medium">{option.route}</p>
+                        <p className="text-sm text-muted-foreground">
+                          • {option.distance} km
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-semibold text-foreground">
+                        Route #{option.id}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {selectedRoute?.id === option.id
+                          ? "viewing"
+                          : "click to view"}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center p-8">
+                <p className="text-muted-foreground">No routes available</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {selectedRoute && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <MapPin className="h-5 w-5" />
+                Route Details
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <h4 className="font-semibold text-sm mb-2">
+                    Route Information
+                  </h4>
+                  <div className="space-y-1 text-sm">
+                    <p>
+                      <span className="text-muted-foreground">From:</span>{" "}
+                      {selectedRoute.route.split(" → ")[0]}
+                    </p>
+                    <p>
+                      <span className="text-muted-foreground">To:</span>{" "}
+                      {selectedRoute.route.split(" → ")[1]}
+                    </p>
+                    <p>
+                      <span className="text-muted-foreground">Distance:</span>{" "}
+                      {selectedRoute.distance} km
+                    </p>
+                  </div>
+                </div>
+                <div>
+                  <h4 className="font-semibold text-sm mb-2">Coordinates</h4>
+                  <div className="space-y-1 text-sm">
+                    <p>
+                      <span className="text-muted-foreground">Start:</span>{" "}
+                      {selectedRoute.coordinates.start.lat.toFixed(4)},{" "}
+                      {selectedRoute.coordinates.start.lng.toFixed(4)}
+                    </p>
+                    <p>
+                      <span className="text-muted-foreground">End:</span>{" "}
+                      {selectedRoute.coordinates.end.lat.toFixed(4)},{" "}
+                      {selectedRoute.coordinates.end.lng.toFixed(4)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        <Card>
+          <CardHeader>
+            <CardTitle>
+              Route Map
+              {selectedRoute && (
+                <span className="text-sm font-normal text-muted-foreground ml-2">
+                  - Showing: {selectedRoute.route}
+                </span>
+              )}
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="aspect-video w-full rounded-lg bg-muted flex items-center justify-center">
               {currentLocation && (
-                <Map position={[currentLocation?.lat, currentLocation.lng]} />
+                <Map
+                  position={[currentLocation?.lat, currentLocation.lng]}
+                  selectedRoute={selectedRoute}
+                />
               )}
             </div>
           </CardContent>
         </Card>
 
-        {/* Transport Options */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Clock className="h-5 w-5" />
-              Available Routes
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {transportOptions.map((option) => (
-                <div
-                  key={option.id}
-                  className="flex items-center justify-between p-4 rounded-lg border bg-card hover:bg-accent/5 transition-colors"
-                >
-                  <div className="flex items-center gap-3">
-                    <Badge className={getTransportColor(option.type)}>
-                      {getTransportIcon(option.type)}
-                    </Badge>
-                    <div>
-                      <p className="font-medium">{option.route}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {option.stops} stops • {option.duration}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-semibold text-foreground">
-                      {option.arrival}
-                    </p>
-                    <p className="text-xs text-muted-foreground">arrival</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Quick Stats */}
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-4">
           <Card>
             <CardContent className="pt-6">
               <div className="text-center">
-                <p className="text-2xl font-bold text-foreground">3</p>
+                <p className="text-2xl font-bold text-foreground">
+                  {isLoading ? "..." : transportOptions.length}
+                </p>
                 <p className="text-sm text-muted-foreground">
                   Routes Available
                 </p>
@@ -230,16 +570,52 @@ export default function TransportDashboard() {
           <Card>
             <CardContent className="pt-6">
               <div className="text-center">
-                <p className="text-2xl font-bold text-foreground">5 min</p>
-                <p className="text-sm text-muted-foreground">Next Departure</p>
+                <p className="text-2xl font-bold text-foreground">
+                  {isLoading
+                    ? "..."
+                    : transportOptions.length > 0
+                    ? `${transportOptions[0].distance} km`
+                    : "N/A"}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  First Route Distance
+                </p>
               </div>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="pt-6">
               <div className="text-center">
-                <p className="text-2xl font-bold text-foreground">18 min</p>
-                <p className="text-sm text-muted-foreground">Fastest Route</p>
+                <p className="text-2xl font-bold text-foreground">
+                  {isLoading
+                    ? "..."
+                    : transportOptions.length > 0
+                    ? `${Math.min(
+                        ...transportOptions.map((option) =>
+                          parseFloat(option.distance)
+                        )
+                      ).toFixed(1)} km`
+                    : "N/A"}
+                </p>
+                <p className="text-sm text-muted-foreground">Shortest Route</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6">
+              <div className="text-center">
+                <p className="text-2xl font-bold text-foreground">
+                  {isLoading
+                    ? "..."
+                    : transportOptions.length > 0
+                    ? `${Math.max(
+                        ...transportOptions.map((option) =>
+                          parseFloat(option.distance)
+                        )
+                      ).toFixed(1)} km`
+                    : "N/A"}
+                </p>
+                <p className="text-sm text-muted-foreground">Longest Route</p>
               </div>
             </CardContent>
           </Card>

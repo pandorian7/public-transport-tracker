@@ -13,4 +13,8 @@ EXPOSE 3000
 RUN addgroup -S nextjs && adduser -S nextjs -G nextjs
 USER nextjs
 
+# Set environment variables for proper Docker networking
+ENV HOSTNAME="0.0.0.0"
+ENV PORT=3000
+
 CMD ["npm", "run", "dev", "--", "-H", "0.0.0.0"]

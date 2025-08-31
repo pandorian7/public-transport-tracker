@@ -31,11 +31,13 @@ export type Location = {
 
 export type TransportOption = {
   id: string;
-  type: "bus" | "train" | "metro";
   route: string;
-  arrival: string;
-  duration: string;
-  stops: number;
+  distance: string;
+  polyline: string;
+  coordinates: {
+    start: { lat: number; lng: number };
+    end: { lat: number; lng: number };
+  };
 };
 
 type User = {
@@ -44,24 +46,33 @@ type User = {
   firstName: string;
   lastName?: string;
   phoneNumber: string;
-  nationalId: string;
-  dateOfBirth: Date;
-  address?: string;
-  city?: string;
-  province?: string;
-  postalCode?: string;
-  isVerified: boolean;
-  role: string;
-  employeeId?: string;
-  departmentId?: string;
-  createdAt: Date;
 };
 
-export type Feedback = {
-  id: string;
-  rating: number;
-  comment: string | null;
-  isAnonymous: boolean;
-  createdAt: string;
-  user: User;
+export type Route = {
+  id: number;
+  A_LAT: number;
+  A_LON: number;
+  A_Name: string;
+  B_LAT: number;
+  B_LON: number;
+  B_Name: string;
+  distance: number;
+  polyline: string;
+};
+
+export type Place = {
+  place_id: number;
+  lat: number;
+  lon: number;
+  name: string;
+};
+
+export type Trip = {
+  id?: number;
+  Route_Id: number;
+  Direction: "forward" | "backward";
+  Loc_LAT: number;
+  Loc_LON: number;
+  Loc_Frac: number;
+  Loc_TimeStamp: string;
 };

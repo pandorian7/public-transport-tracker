@@ -15,7 +15,6 @@ import Link from "next/link";
 import { useState } from "react";
 import { signOut, useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { Notifications } from "./notifications";
 
 interface SiteHeaderProps {
   showAuthButtons?: boolean;
@@ -49,11 +48,10 @@ export function SiteHeader({ showAuthButtons = true }: SiteHeaderProps) {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent>
-          {session && (
-            <DropdownMenuItem onClick={() => router.push("/dashboard")}>
-              Dashboard
-            </DropdownMenuItem>
-          )}
+          <DropdownMenuItem onClick={() => router.push("/dashboard")}>
+            Dashboard
+          </DropdownMenuItem>
+
           <DropdownMenuItem>Support</DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -84,27 +82,14 @@ export function SiteHeader({ showAuthButtons = true }: SiteHeaderProps) {
             <div className="hidden md:flex items-center gap-4">
               <NavigationMenu />
 
-              {!session ? (
-                <Link href="/signup">
-                  <Button className=" bg-black text-white hover:bg-gray-800">
-                    Register
-                  </Button>
-                </Link>
-              ) : (
-                <Button
-                  onClick={async () => {
-                    await signOut();
-                  }}
-                  className=" bg-black text-white hover:bg-gray-800"
-                >
-                  Log out
+              <Link href="/dashboard">
+                <Button className=" bg-black text-white hover:bg-gray-800">
+                  Dashboard
                 </Button>
-              )}
+              </Link>
             </div>
 
             <div className="md:hidden flex items-center gap-2">
-              {session !== null && <Notifications />}
-
               <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
                 <SheetTrigger asChild>
                   <Button variant="ghost" size="icon">
